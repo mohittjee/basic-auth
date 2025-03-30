@@ -2,13 +2,18 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
+const jwt = require('jsonwebtoken');
+
 const users = [];
 
-const generateToken = () => {
-    return Math.random().toString(36).substr(2);
-};
+const JWT_SECRET = "your_jwt_secret";
+
+// const generateToken = () => {
+//     return Math.random().toString(36).substr(2);
+// };
 
 app.post('/signup', (req, res) => {
+    console.log(req.body);  
     const username = req.body?.username;
     const password = req.body?.password;
     users.find(user => {
@@ -16,7 +21,7 @@ app.post('/signup', (req, res) => {
             return res.status(400).send('User already exists');
         }
     });
-    if(!username || !password) {
+    if (!username || !password) {
         return res.status(400).send('Username or password missing');
     }
     users.push({ username, password });
@@ -29,12 +34,14 @@ app.post('/signin', (req, res) => {
     const password = req.body.password;
     const user = users.find(user => user.username === username && user.password === password);
     if (user) {
-        token = generateToken();
-        user.token = token;
+        token = jwt.sign({
+            username: user.username
+        }, JWT_SECRET);
+        // user.token = token;
         console.log(users)
 
         return res.status(200).send(token);
-        
+
     } else {
         return res.status(401).send('User not authenticated');
     }
@@ -42,8 +49,10 @@ app.post('/signin', (req, res) => {
 
 
 app.get('/me', (req, res) => {
-    const token = req.headers.authorization = req.headers.authorization || '';
-    const user = users.find(user => user.token === token);
+    const token = jwt.verify(req.headers.authorization, JWT_SECRET) || '';
+    console.log(token)
+
+    const user = users.find(user => user.username === token.username);
     if (user) {
         return res.status(200).send(user.username);
     } else {
